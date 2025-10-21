@@ -1,0 +1,277 @@
+---
+title: "Assignment 3"
+subtitle: "Due at 11:59pm on October 14."
+format: pdf
+editor: visual
+---
+
+You may work in pairs or individually for this assignment. Make sure you join a group in Canvas if you are working in pairs. Turn in this assignment as an HTML or PDF file to ELMS. Make sure to include the R Markdown or Quarto file that was used to generate it. Include the GitHub link for the repository containing these files.
+
+```{r}
+#| include: false
+library(xml2)
+library(rvest)
+library(jsonlite)
+library(robotstxt)
+library(tidyverse)
+library(topicmodels)
+library(ggplot2)
+
+```
+
+## Web Scraping
+
+In this assignment, your task is to scrape some information from Wikipedia. We start with the following page about Grand Boulevard, a Chicago Community Area.
+
+<https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago>
+
+The ultimate goal is to gather the table "Historical population" and convert it to a `data.frame`.
+
+As a first step, read in the html page as an R object. Extract the tables from this object (using the `rvest` package) and save the result as a new object. Follow the instructions if there is an error. Use `str()` on this new object -- it should be a list. Try to find the position of the "Historical population" in this list since we need it in the next step.
+
+Extract the "Historical population" table from the list and save it as another object. You can use subsetting via `[[…]]` to extract pieces from a list. Print the result.
+
+You will see that the table needs some additional formatting. Keep only want rows and columns with actual values.
+
+```{r}
+paths_allowed("https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago")
+```
+
+```{r}
+Chi_html <- read_html("https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago")
+tables<- html_table(Chi_html, fill = TRUE)
+```
+
+```{r}
+hist_pop<-tables[[2]]
+
+head(hist_pop)
+```
+```{r}
+hist_pop_clean <- hist_pop %>%
+  slice(-11) %>%      
+  select(-3)            
+
+
+```
+
+```{r}
+hist_pop_clean <- hist_pop_clean %>%
+  mutate(across(where(is.character), ~ str_remove_all(., ","))) %>%
+  mutate(across(where(is.character), ~ str_trim(.))) %>%
+  mutate(across(where(~ all(str_detect(., "^\\d+$"))), as.numeric))
+
+print(hist_pop_clean)
+
+```
+
+
+
+## Expanding to More Pages
+
+That's it for this page. However, we may want to repeat this process for other community areas. The Wikipedia page <https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago> has a section on "Places adjacent to Grand Boulevard, Chicago" at the bottom. Can you find the corresponding table in the list of tables that you created earlier? Extract this table as a new object.
+
+Then, grab the community areas east of Grand Boulevard and save them as a character vector. Print the result.
+
+
+We want to use this list to create a loop that extracts the population tables from the Wikipedia pages of these places. To make this work and build valid urls, we need to replace empty spaces in the character vector with underscores. The resulting vector should look like this: "Oakland,\_Chicago" "Kenwood,\_Chicago" "Hyde_Park,\_Chicago"
+
+Build a loop to grab the population tables from each page. Add columns to the original table using `cbind()`.
+
+```{r}
+##Finding the Corresponding tables that leads to the other pages and tables
+adjacent_table <- tables[[4]]
+
+adjacent_table
+
+adjacent_table <- adjacent_table[-c(2, 4), ]
+
+adjacent_table
+
+east <- adjacent_table[, 3, drop = FALSE]
+
+# the 3rd column renamed east
+east <- as.character(unlist(adjacent_table[, 3, drop = FALSE]))
+
+
+print(east)
+
+east_links <- gsub(" ", "_", east)
+
+print(east_links)
+
+
+urls <- paste0("https://en.wikipedia.org/wiki/", east_links)
+print(urls)
+
+
+```
+
+```{r}
+Chi_html <- read_html("https://en.wikipedia.org/wiki/Oakland,_Chicago")
+tables <- html_table(Chi_html, fill = TRUE)
+length(tables)
+View(tables[[1]])
+View(tables[[2]])
+View(tables[[3]])
+
+Table2<-tables[[2]]
+```
+
+
+```{r warning=FALSE}
+# Start with your Grand Boulevard population table
+combined_pop <- hist_pop_clean
+
+for (url in urls) {
+  message("Scraping: ", url)
+  
+  Chi_html <- read_html(url)
+  tables <- html_table(Chi_html, fill = TRUE)
+  
+  # Select correct table
+  if (grepl("Hyde_Park", url)) {
+    Table <- tables[[4]]
+    Table <- Table[-c(1, 2), ]  
+  } else {
+    Table <- tables[[2]]
+  }
+  
+  # Clean table BEFORE cbind()
+  Table <- Table %>%
+    select(1:2) %>%                  
+    rename(Census = 1, Pop = 2) %>%
+    filter(!is.na(Census)) %>%
+    mutate(
+      Pop = str_remove_all(Pop, ","),
+      Pop = as.numeric(Pop)
+    )
+  
+  # Align Census years to base table
+  Table <- Table[Table$Census %in% hist_pop_clean$Census, ]
+  Table <- Table[match(hist_pop_clean$Census, Table$Census), ]
+  
+  colnames(Table)[2] <- gsub("https://en.wikipedia.org/wiki/|,_Chicago", "", url)
+  
+  combined_pop <- cbind(combined_pop, Table[, 2, drop = FALSE])
+}
+
+print(combined_pop)
+
+```
+
+## Scraping and Analyzing Text Data
+
+Suppose we wanted to take the actual text from the Wikipedia pages instead of just the information in the table. Our goal in this section is to extract the text from the body of the pages, then do some basic text cleaning and analysis.
+
+First, scrape just the text without any of the information in the margins or headers. For example, for "Grand Boulevard", the text should start with, "**Grand Boulevard** on the [South Side](https://en.wikipedia.org/wiki/South_Side,_Chicago "South Side, Chicago") of [Chicago](https://en.wikipedia.org/wiki/Chicago "Chicago"), [Illinois](https://en.wikipedia.org/wiki/Illinois "Illinois"), is one of the ...". Make sure all of the text is in one block by using something like the code below (I called my object `description`).
+
+```{r}
+# description <- description %>% paste(collapse = ' ')
+```
+
+```{r}
+
+
+Chi_html <- read_html("https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago")
+
+description <- Chi_html %>%
+  html_nodes("p") %>%         
+  html_text() %>%             
+  paste(collapse = " ")      
+
+```
+
+
+Using a similar loop as in the last section, grab the descriptions of the various communities areas. Make a tibble with two columns: the name of the location and the text describing the location.
+
+```{r}
+urls_all <- c(
+  "https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago",
+  "https://en.wikipedia.org/wiki/Oakland,_Chicago",
+  "https://en.wikipedia.org/wiki/Kenwood,_Chicago",
+  "https://en.wikipedia.org/wiki/Hyde_Park,_Chicago"
+)
+
+
+descriptions <- tibble(
+  location = character(),
+  text = character()
+)
+
+
+for (url in urls_all) {
+  message("Scraping text from: ", url)
+  
+  Chi_html <- read_html(url)
+
+#by paragraph
+  description <- Chi_html %>%
+    html_nodes("p") %>%
+    html_text() %>%
+    paste(collapse = " ")
+
+#clean location name
+  location_name <- gsub("https://en.wikipedia.org/wiki/|,_Chicago", "", url)
+  
+  #tibble
+  descriptions <- add_row(descriptions,
+                          location = location_name,
+                          text = description)
+}
+
+
+View(descriptions)
+print(descriptions)
+```
+
+
+Let's clean the data using `tidytext`. If you have trouble with this section, see the example shown in <https://www.tidytextmining.com/tidytext.html>
+
+```{r}
+library(tidytext)
+```
+
+Create tokens using `unnest_tokens`. Make sure the data is in one-token-per-row format. Remove any stop words within the data. What are the most common words used overall?
+
+Plot the most common words within each location. What are some of the similarities between the locations? What are some of the differences?
+
+```{r}
+tokens <- descriptions %>%
+  unnest_tokens(word, text) %>%       
+  anti_join(stop_words, by = "word")  
+
+head(tokens)
+
+```
+
+```{r}
+tokens %>%
+  count(word, sort = TRUE) %>%
+  head(10)
+
+```
+The most common words used are in descending order starting with the highest amount of words on the pages are Park, Hyde, Chicago, Kenwood, Street, South, Community, Neighborhood, Oakland, and Lake.
+
+
+```{r}
+
+tokens %>%
+  count(location, word, sort = TRUE) %>%
+  group_by(location) %>%
+  slice_max(n, n = 10) %>%
+  ungroup() %>%
+  mutate(word = reorder_within(word, n, location)) %>%
+  ggplot(aes(n, word, fill = location)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ location, scales = "free_y") +
+  scale_y_reordered() +
+  labs(
+    title = "Most Common Words in Chicago Community Descriptions",
+    x = "Frequency",
+    y = "Word"
+  )
+
+```
+
+The plot above shows the four Chicago suburb Wikipedia pages Grand boulevard, Hyde Park, Kenwood, and Oakland and what  words show up the most in each. What these frequency plots show is the distribution of words that show up in the text. What I found after examining the words is that the name of the suburb show up the most for each of the Wikipedia pages. Another word that show up a lot are words like neighborhood and community.Grand Boulevard and Hyde Park have neighborhood show up a few times while Grand Boulevard, Kenwood and, Oakland have the word community show up between the three of them. All four locations have the word street show up around that average amount between the most words used in each Wikipedia page. Another stand out is that Hyde Park and Kenwood both have the word Kenwood in their top words plot Hyde Park having the word Kenwood showing up a few times is interesting because it was the only page that have another locations name enough times to make the most words used list.   Some differences that stick out to me is that Oakland is the only page that has the word African show up between the locations which can be assumed that this locations have a historic population or connection to African Americans or African communities. Another interesting one is that Oakland has the word lake as well which can suggest that there might be lakes in the area or certain location with the name of lake that show up in the Wikipedia page. Finally what stood out to me is that Grand boulevard is the only location that the words votes, cast, and presidential in the page suggesting some sort of voting or political information that is important or historic to this part of Chicago.   
