@@ -47,6 +47,7 @@ hist_pop<-tables[[2]]
 
 head(hist_pop)
 ```
+
 ```{r}
 hist_pop_clean <- hist_pop %>%
   slice(-11) %>%      
@@ -65,14 +66,11 @@ print(hist_pop_clean)
 
 ```
 
-
-
 ## Expanding to More Pages
 
 That's it for this page. However, we may want to repeat this process for other community areas. The Wikipedia page <https://en.wikipedia.org/wiki/Grand_Boulevard,_Chicago> has a section on "Places adjacent to Grand Boulevard, Chicago" at the bottom. Can you find the corresponding table in the list of tables that you created earlier? Extract this table as a new object.
 
 Then, grab the community areas east of Grand Boulevard and save them as a character vector. Print the result.
-
 
 We want to use this list to create a loop that extracts the population tables from the Wikipedia pages of these places. To make this work and build valid urls, we need to replace empty spaces in the character vector with underscores. The resulting vector should look like this: "Oakland,\_Chicago" "Kenwood,\_Chicago" "Hyde_Park,\_Chicago"
 
@@ -117,7 +115,6 @@ View(tables[[3]])
 
 Table2<-tables[[2]]
 ```
-
 
 ```{r warning=FALSE}
 # Start with your Grand Boulevard population table
@@ -182,7 +179,6 @@ description <- Chi_html %>%
 
 ```
 
-
 Using a similar loop as in the last section, grab the descriptions of the various communities areas. Make a tibble with two columns: the name of the location and the text describing the location.
 
 ```{r}
@@ -225,7 +221,6 @@ View(descriptions)
 print(descriptions)
 ```
 
-
 Let's clean the data using `tidytext`. If you have trouble with this section, see the example shown in <https://www.tidytextmining.com/tidytext.html>
 
 ```{r}
@@ -251,8 +246,8 @@ tokens %>%
   head(10)
 
 ```
-The most common words used are in descending order starting with the highest amount of words on the pages are Park, Hyde, Chicago, Kenwood, Street, South, Community, Neighborhood, Oakland, and Lake.
 
+The most common words used are in descending order starting with the highest amount of words on the pages are Park, Hyde, Chicago, Kenwood, Street, South, Community, Neighborhood, Oakland, and Lake.
 
 ```{r}
 
@@ -274,4 +269,4 @@ tokens %>%
 
 ```
 
-The plot above shows the four Chicago suburb Wikipedia pages Grand boulevard, Hyde Park, Kenwood, and Oakland and what  words show up the most in each. What these frequency plots show is the distribution of words that show up in the text. What I found after examining the words is that the name of the suburb show up the most for each of the Wikipedia pages. Another word that show up a lot are words like neighborhood and community.Grand Boulevard and Hyde Park have neighborhood show up a few times while Grand Boulevard, Kenwood and, Oakland have the word community show up between the three of them. All four locations have the word street show up around that average amount between the most words used in each Wikipedia page. Another stand out is that Hyde Park and Kenwood both have the word Kenwood in their top words plot Hyde Park having the word Kenwood showing up a few times is interesting because it was the only page that have another locations name enough times to make the most words used list.   Some differences that stick out to me is that Oakland is the only page that has the word African show up between the locations which can be assumed that this locations have a historic population or connection to African Americans or African communities. Another interesting one is that Oakland has the word lake as well which can suggest that there might be lakes in the area or certain location with the name of lake that show up in the Wikipedia page. Finally what stood out to me is that Grand boulevard is the only location that the words votes, cast, and presidential in the page suggesting some sort of voting or political information that is important or historic to this part of Chicago.   
+The plot above shows the four Chicago suburb Wikipedia pages Grand boulevard, Hyde Park, Kenwood, and Oakland and what words show up the most in each. What these frequency plots show is the distribution of words that show up in the text. What I found after examining the words is that the name of the suburb show up the most for each of the Wikipedia pages. Another word that show up a lot are words like neighborhood and community.Grand Boulevard and Hyde Park have neighborhood show up a few times while Grand Boulevard, Kenwood and, Oakland have the word community show up between the three of them. All four locations have the word street show up around that average amount between the most words used in each Wikipedia page. Another stand out is that Hyde Park and Kenwood both have the word Kenwood in their top words plot Hyde Park having the word Kenwood showing up a few times is interesting because it was the only page that have another locations name enough times to make the most words used list. Some differences that stick out to me is that Oakland is the only page that has the word African show up between the locations which can be assumed that this locations have a historic population or connection to African Americans or African communities. Another interesting one is that Oakland has the word lake as well which can suggest that there might be lakes in the area or certain location with the name of lake that show up in the Wikipedia page. Finally what stood out to me is that Grand boulevard is the only location that the words votes, cast, and presidential in the page suggesting some sort of voting or political information that is important or historic to this part of Chicago.
